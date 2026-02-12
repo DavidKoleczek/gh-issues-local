@@ -1,6 +1,6 @@
-# gh-issues-mock
+# gh-issues-local
 
-A mock of the GitHub Issues API built with FastAPI.
+A local implementation of the GitHub Issues API built with FastAPI.
 Runs locally or in a container, with an optional web UI and token-based auth for network access.
 
 ## Prerequisites
@@ -10,7 +10,7 @@ Runs locally or in a container, with an optional web UI and token-based auth for
 ## Quick Start
 
 ```bash
-uv run gh-issues-mock
+uv run gh-issues-local
 ```
 
 Opens on http://127.0.0.1:8000 with auth disabled.
@@ -25,15 +25,15 @@ Auth is **off** when bound to `127.0.0.1` (the default) and **on** when bound to
 | `--no-auth` | Explicitly disable auth on any bind address |
 | `--port PORT` | Listen on a different port (default: 8000) |
 
-When auth is enabled a random token is generated and stored in `~/.gh-issues-mock-token`
-(or `$GH_ISSUES_MOCK_DATA_DIR/.gh-issues-mock-token` if the env var is set).
+When auth is enabled a random token is generated and stored in `~/.gh-issues-local-token`
+(or `$GH_ISSUES_LOCAL_DATA_DIR/.gh-issues-local-token` if the env var is set).
 The web UI will prompt for the token and store it in browser localStorage.
 
 ## Development
 
 ```bash
 uv sync
-uv run fastapi dev src/gh_issues_mock/app.py
+uv run fastapi dev src/gh_issues_local/app.py
 ```
 
 This starts the server with auto-reload for development.

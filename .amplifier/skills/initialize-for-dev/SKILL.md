@@ -9,7 +9,9 @@ description: Initialize a repo for AI-assisted development by cloning key depend
 2. Create directory: Ensure `ai_working/` exists.
 3. Check for existing repos: If any of these directories exist in `ai_working/`, delete them completely before proceeding:
    - `ai_working/amplifier`
+   - `ai_working/rest-api-description`
 4. Clone each of the repos with the following template in parallel: `git clone --depth 1 --single-branch <repo-url> <local-path>`
    - `amplifier`: https://github.com/microsoft/amplifier.git
+   - `rest-api-description`: https://github.com/github/rest-api-description.git
 5. Check the AGENTS.md to see if each of the repos being cloned is mentioned there. If any are missing, add them without any notes.
 6. Briefly summarize what was done to the user

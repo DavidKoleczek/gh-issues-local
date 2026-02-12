@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from gh_issues_mock.auth import TOKEN_FILE, AuthMiddleware, ensure_token
+from gh_issues_local.auth import TOKEN_FILE, AuthMiddleware, ensure_token
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -14,7 +14,7 @@ class VerifyRequest(BaseModel):
 
 
 def create_app(auth_required: bool = False) -> FastAPI:
-    app = FastAPI(title="GitHub Issues Mock", version="0.1.0")
+    app = FastAPI(title="GitHub Issues API", version="0.1.0")
 
     # Auth state -- set before middleware so it's available on first request.
     app.state.auth_required = auth_required

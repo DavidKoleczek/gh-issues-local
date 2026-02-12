@@ -15,6 +15,7 @@
 - For libraries that are new to you or change frequently, you must refer to their official documentation or source code.
 - There is a select set of repos cloned that constitute the dependencies for this project at `ai_working`. You must explore it directly when needed. It can be updated through the Claude command `/setup-reference-repos`  in this project.
   - `amplifier` - To understand the development environment. **Important** the architecture is highly modular, spread across multiple repos. You can discover the repos at `amplifier/docs/MODULES.md` and clone them as needed.
+  - `rest-api-description` - GitHub's official OpenAPI descriptions for the REST API. This is the reference spec for the Issues API.
 - When looking for something specific that might take a while, use a sub-agent to find it. Tell the sub-agent return the location (paths) of what is found so it can be referenced easily later.
 - To figure out how things like `uv` work, start by using `uv --help`. This is a general pattern.
 
@@ -26,3 +27,4 @@ When you add, change, or remove an API endpoint, update the smoke test to cover 
 # Key Files
 
 @README.md
+@docs/ISSUES_SPEC.md -- The target API surface. Implementation should match these endpoints.

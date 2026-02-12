@@ -1,7 +1,7 @@
 [project]
-name = "gh-issues-mock"
+name = "gh-issues-local"
 version = "0.1.0"
-description = "A mock of the GitHub Issues API built with FastAPI"
+description = "A local implementation of the GitHub Issues API built with FastAPI"
 readme = "README.md"
 authors = [
     { name = "DavidKoleczek", email = "45405824+DavidKoleczek@users.noreply.github.com" }
@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-gh-issues-mock = "gh_issues_mock:main"
+gh-issues-local = "gh_issues_local:main"
 
 [dependency-groups]
 dev = [

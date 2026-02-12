@@ -205,7 +205,7 @@ wheels = [
 ]
 
 [[package]]
-name = "gh-issues-mock"
+name = "gh-issues-local"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-E2E smoke test for gh-issues-mock.
+E2E smoke test
 
 Starts the server in two modes (no-auth and auth-enabled), exercises every
 endpoint, and prints clear pass/fail results with diagnostics on failure.
@@ -64,14 +64,14 @@ def start_server(
     auth_required: bool = False,
     data_dir: str | None = None,
 ) -> subprocess.Popen:
-    """Start the mock server as a subprocess using the app factory directly."""
+    """Start the server as a subprocess using the app factory directly."""
     env = os.environ.copy()
     if data_dir:
-        env["GH_ISSUES_MOCK_DATA_DIR"] = data_dir
+        env["GH_ISSUES_LOCAL_DATA_DIR"] = data_dir
     # Inline script avoids needing __main__.py or the console-script on PATH.
     script = (
         "import uvicorn; "
-        "from gh_issues_mock.app import create_app; "
+        "from gh_issues_local.app import create_app; "
         f"uvicorn.run(create_app(auth_required={auth_required}), "
         f'host="127.0.0.1", port={port}, log_level="warning")'
     )
@@ -211,7 +211,7 @@ def no_auth_checks(base: str) -> list[Check]:
             "GET",
             "/",
             base=base,
-            expect_body_contains="GitHub Issues Mock",
+            expect_body_contains="GitHub Issues API",
         ),
         Check(
             "swagger_docs_available",
@@ -317,7 +317,7 @@ def run_checks(label: str, checks: list[Check]) -> tuple[int, int, list[str]]:
 
 
 def main() -> int:
-    print("=== gh-issues-mock e2e smoke test ===")
+    print("=== gh-issues-local e2e smoke test ===")
 
     procs: list[subprocess.Popen] = []
     total_passed = 0
@@ -349,7 +349,7 @@ def main() -> int:
 
         # -- Phase 2: auth-enabled mode -------------------------------------
 
-        auth_data_dir = tempfile.mkdtemp(prefix="gh-mock-test-")
+        auth_data_dir = tempfile.mkdtemp(prefix="gh-issues-test-")
         print(f"\nStarting auth server on :{AUTH_PORT} (data_dir={auth_data_dir}) ...")
         auth_proc = start_server(
             AUTH_PORT,
@@ -365,7 +365,7 @@ def main() -> int:
                 print(f"Server stderr:\n{stderr.read().decode()[:2000]}")
             return 1
 
-        token_path = Path(auth_data_dir) / ".gh-issues-mock-token"
+        token_path = Path(auth_data_dir) / ".gh-issues-local-token"
         token = token_path.read_text().strip()
         print(f"Read auth token from {token_path}")
 

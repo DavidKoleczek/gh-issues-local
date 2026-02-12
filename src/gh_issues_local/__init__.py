@@ -2,7 +2,7 @@ import argparse
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="GitHub Issues API mock server")
+    parser = argparse.ArgumentParser(description="GitHub Issues API server")
     parser.add_argument(
         "--host",
         default="127.0.0.1",
@@ -27,11 +27,11 @@ def main() -> None:
     # Delay imports so --help stays fast.
     import uvicorn
 
-    from gh_issues_mock.app import create_app
+    from gh_issues_local.app import create_app
 
     app = create_app(auth_required=auth_required)
 
-    print(f"Starting gh-issues-mock on http://{args.host}:{args.port}")
+    print(f"Starting gh-issues-local on http://{args.host}:{args.port}")
     if auth_required:
         print(f"Auth enabled. Token file: {app.state.auth_token_path}")
         print(f"Token: {app.state.auth_token}")
