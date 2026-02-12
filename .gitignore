@@ -1,6 +1,6 @@
 # Project specific
 ai_working/
-.gh-issues-mock-token
+.gh-issues-local-token
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
