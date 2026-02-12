@@ -1,3 +1,7 @@
+# Project specific
+ai_working/
+.gh-issues-mock-token
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GitHub Issues Mock</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      color: #1f2328; background: #f6f8fa; line-height: 1.5;
+    }
+    header {
+      background: #24292f; color: #fff; padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header h1 { font-size: 18px; font-weight: 600; }
+    header button {
+      background: transparent; color: #ccc; border: 1px solid #555;
+      padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    }
+    header button:hover { color: #fff; border-color: #888; }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 32px 16px; }
+
+    /* Login */
+    #login-view {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-height: 60vh;
+    }
+    #login-view h2 { margin-bottom: 8px; font-size: 24px; }
+    #login-view p { color: #656d76; margin-bottom: 24px; }
+    #login-form {
+      background: #fff; border: 1px solid #d0d7de; border-radius: 6px;
+      padding: 24px; width: 100%; max-width: 360px;
+    }
+    #login-form label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
+    #login-form input[type="password"] {
+      width: 100%; padding: 8px 12px; border: 1px solid #d0d7de;
+      border-radius: 6px; font-size: 14px; margin-bottom: 16px;
+    }
+    #login-form input[type="password"]:focus { outline: none; border-color: #0969da; box-shadow: 0 0 0 3px rgba(9,105,218,.3); }
+    #login-form button {
+      width: 100%; padding: 8px; background: #2da44e; color: #fff;
+      border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    #login-form button:hover { background: #298e46; }
+    #login-error {
+      color: #cf222e; font-size: 13px; margin-top: 12px; display: none;
+    }
+
+    /* Main */
+    #main-view .placeholder {
+      text-align: center; padding: 64px 16px; color: #656d76;
+    }
+    #main-view .placeholder h2 { font-size: 20px; color: #1f2328; margin-bottom: 8px; }
+    .status-badge {
+      display: inline-block; background: #dafbe1; color: #1a7f37;
+      padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>GitHub Issues Mock</h1>
+    <div>
+      <span class="status-badge">Running</span>
+      <button id="logout-btn" style="display:none; margin-left:12px;" onclick="logout()">Sign out</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div id="login-view" style="display:none">
+      <h2>Authentication required</h2>
+      <p>This instance is exposed on the network. Enter the token to continue.</p>
+      <form id="login-form" onsubmit="return handleLogin(event)">
+        <label for="token-input">Token</label>
+        <input type="password" id="token-input" placeholder="Paste token here" autocomplete="off">
+        <button type="submit">Sign in</button>
+        <div id="login-error">Invalid token. Check the token file or server logs.</div>
+      </form>
+    </div>
+
+    <div id="main-view" style="display:none">
+      <div class="placeholder">
+        <h2>No issues yet</h2>
+        <p>The API is running. Issue endpoints coming soon.</p>
+        <p style="margin-top:16px; font-size:13px;">
+          Health check: <a href="/api/health">/api/health</a>
+          &nbsp;&middot;&nbsp;
+          API docs: <a href="/docs">/docs</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const TOKEN_KEY = "gh_issues_mock_token";
+
+    async function init() {
+      const res = await fetch("/api/auth/status");
+      const { required } = await res.json();
+
+      if (!required) {
+        show("main-view");
+        return;
+      }
+
+      // Auth required -- check for stored token.
+      const stored = localStorage.getItem(TOKEN_KEY);
+      if (stored && await verifyToken(stored)) {
+        show("main-view");
+        document.getElementById("logout-btn").style.display = "inline-block";
+      } else {
+        localStorage.removeItem(TOKEN_KEY);
+        show("login-view");
+      }
+    }
+
+    async function verifyToken(token) {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      const data = await res.json();
+      return data.valid;
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const token = document.getElementById("token-input").value.trim();
+      if (!token) return false;
+
+      if (await verifyToken(token)) {
+        localStorage.setItem(TOKEN_KEY, token);
+        show("main-view");
+        document.getElementById("logout-btn").style.display = "inline-block";
+        hide("login-view");
+      } else {
+        document.getElementById("login-error").style.display = "block";
+      }
+      return false;
+    }
+
+    function logout() {
+      localStorage.removeItem(TOKEN_KEY);
+      location.reload();
+    }
+
+    function show(id) { document.getElementById(id).style.display = ""; }
+    function hide(id) { document.getElementById(id).style.display = "none"; }
+
+    init();
+  </script>
+</body>
+</html>
