@@ -24,6 +24,25 @@
 `scripts/smoke_test.py` is the e2e smoke test for the server. It starts the server, calls every endpoint, and checks responses. It is not a unit test suite; it exists so the AI can quickly verify the server works end to end and diagnose failures from the output.
 When you add, change, or remove an API endpoint, update the smoke test to cover it. The checks should mirror the real API surface: if a new route exists, there should be a check for it; if a route changes behavior, the check should match. Keep the two phases (no-auth and auth-enabled) in sync with the auth middleware's public paths list.
 
+# Architecture
+
+```
+src/gh_issues_local/
+  __init__.py       -- CLI entrypoint (argparse + uvicorn)
+  app.py            -- FastAPI app factory, wires storage + routes + auth
+  auth.py           -- Bearer token middleware, PUBLIC_PATHS whitelist
+  models.py         -- Pydantic request models (CreateIssueRequest, UpdateIssueRequest)
+  storage.py        -- IssueStore: CRUD/list/search backed by storage-provider
+  routes/
+    issues.py       -- All 8 Issues -- Core endpoints
+  static/
+    index.html      -- Landing page
+```
+
+Storage is configured via `create_storage(config_dir=data_dir)` which reads `.storage.yaml` and the provider-specific config file from `$GH_ISSUES_LOCAL_DATA_DIR`. See README for config file format.
+
+Issues are stored as JSON files at `repos/{owner}/{repo}/issues/{number}/issue.json` with a `counter.txt` for auto-incrementing issue numbers.
+
 # Key Files
 
 @README.md

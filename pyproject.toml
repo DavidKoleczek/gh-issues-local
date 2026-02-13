@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "fastapi[standard]>=0.129.0",
+    "storage-provider",
 ]
 
 [project.scripts]
@@ -61,3 +62,6 @@ split-on-trailing-comma = false
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
+
+[tool.uv.sources]
+storage-provider = { git = "https://github.com/DavidKoleczek/storage-provider.git" }

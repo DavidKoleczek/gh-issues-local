@@ -58,6 +58,13 @@ def http(
 # -- Server lifecycle -------------------------------------------------------
 
 
+def write_storage_config(data_dir: str) -> None:
+    """Write .storage.yaml + .local_storage.yaml so create_storage() works."""
+    dir_path = Path(data_dir)
+    (dir_path / ".storage.yaml").write_text("provider: local\n")
+    (dir_path / ".local_storage.yaml").write_text("root_path: ./storage\n")
+
+
 def start_server(
     port: int,
     *,
@@ -123,6 +130,8 @@ class Check:
         headers: dict[str, str] | None = None,
         expect_status: int = 200,
         expect_json: dict | None = None,
+        expect_json_contains: dict | None = None,
+        expect_json_list_length: int | None = None,
         expect_body_contains: str | None = None,
     ):
         self.name = name
@@ -133,6 +142,8 @@ class Check:
         self.headers = headers
         self.expect_status = expect_status
         self.expect_json = expect_json
+        self.expect_json_contains = expect_json_contains
+        self.expect_json_list_length = expect_json_list_length
         self.expect_body_contains = expect_body_contains
 
     def run(self) -> tuple[bool, str]:
@@ -170,6 +181,36 @@ class Check:
                     lines.append(f"  Expected JSON:   {self.expect_json}")
                     lines.append(f"  Got JSON:        {got}")
 
+        if self.expect_json_contains is not None:
+            try:
+                got = json.loads(resp_body)
+            except (json.JSONDecodeError, ValueError):
+                passed = False
+                lines.append(f"  Expected JSON containing: {self.expect_json_contains}")
+                lines.append(f"  Got non-JSON: {resp_body[:300]}")
+            else:
+                for key, expected_val in self.expect_json_contains.items():
+                    actual_val = got.get(key, "<MISSING>")
+                    if actual_val != expected_val:
+                        passed = False
+                        lines.append(f"  JSON key {key!r}: expected {expected_val!r}, got {actual_val!r}")
+
+        if self.expect_json_list_length is not None:
+            try:
+                got = json.loads(resp_body)
+            except (json.JSONDecodeError, ValueError):
+                passed = False
+                lines.append(f"  Expected JSON list of length {self.expect_json_list_length}")
+                lines.append(f"  Got non-JSON: {resp_body[:300]}")
+            else:
+                if not isinstance(got, list):
+                    passed = False
+                    lines.append(f"  Expected JSON list, got {type(got).__name__}")
+                elif len(got) != self.expect_json_list_length:
+                    passed = False
+                    lines.append(f"  Expected list length: {self.expect_json_list_length}")
+                    lines.append(f"  Got list length:      {len(got)}")
+
         if self.expect_body_contains is not None and self.expect_body_contains not in resp_body:
             passed = False
             lines.append(f"  Expected body to contain: {self.expect_body_contains!r}")
@@ -184,6 +225,7 @@ class Check:
 def no_auth_checks(base: str) -> list[Check]:
     """Checks for a server started with auth_required=False."""
     return [
+        # -- Infrastructure checks ------------------------------------------
         Check(
             "health",
             "GET",
@@ -225,6 +267,138 @@ def no_auth_checks(base: str) -> list[Check]:
             "GET",
             "/api/nonexistent",
             base=base,
+            expect_status=404,
+        ),
+        # -- Issues API: Create ---------------------------------------------
+        Check(
+            "create_issue",
+            "POST",
+            "/repos/test-owner/test-repo/issues",
+            base=base,
+            body={"title": "First issue", "body": "This is the body"},
+            expect_status=201,
+            expect_json_contains={"number": 1, "title": "First issue", "state": "open"},
+        ),
+        Check(
+            "create_second_issue",
+            "POST",
+            "/repos/test-owner/test-repo/issues",
+            base=base,
+            body={"title": "Second issue", "labels": ["bug", "urgent"]},
+            expect_status=201,
+            expect_json_contains={"number": 2, "title": "Second issue", "state": "open"},
+        ),
+        # -- Issues API: Get ------------------------------------------------
+        Check(
+            "get_issue",
+            "GET",
+            "/repos/test-owner/test-repo/issues/1",
+            base=base,
+            expect_json_contains={"number": 1, "title": "First issue", "body": "This is the body"},
+        ),
+        Check(
+            "get_missing_issue_returns_404",
+            "GET",
+            "/repos/test-owner/test-repo/issues/999",
+            base=base,
+            expect_status=404,
+            expect_body_contains="Not Found",
+        ),
+        # -- Issues API: Update ---------------------------------------------
+        Check(
+            "update_issue_title",
+            "PATCH",
+            "/repos/test-owner/test-repo/issues/1",
+            base=base,
+            body={"title": "Updated title"},
+            expect_json_contains={"number": 1, "title": "Updated title"},
+        ),
+        Check(
+            "close_issue",
+            "PATCH",
+            "/repos/test-owner/test-repo/issues/1",
+            base=base,
+            body={"state": "closed", "state_reason": "completed"},
+            expect_json_contains={"number": 1, "state": "closed", "state_reason": "completed"},
+        ),
+        # -- Issues API: List for repo --------------------------------------
+        Check(
+            "list_repo_issues_open_only",
+            "GET",
+            "/repos/test-owner/test-repo/issues",
+            base=base,
+            # Issue #1 is closed, only #2 is open.
+            expect_json_list_length=1,
+        ),
+        Check(
+            "list_repo_issues_all_states",
+            "GET",
+            "/repos/test-owner/test-repo/issues?state=all",
+            base=base,
+            expect_json_list_length=2,
+        ),
+        # -- Issues API: List all -------------------------------------------
+        Check(
+            "list_all_issues",
+            "GET",
+            "/issues",
+            base=base,
+            # Only open issues: issue #2.
+            expect_json_list_length=1,
+        ),
+        # -- Issues API: List user issues -----------------------------------
+        Check(
+            "list_user_issues",
+            "GET",
+            "/user/issues",
+            base=base,
+            expect_json_list_length=1,
+        ),
+        # -- Issues API: List org issues ------------------------------------
+        Check(
+            "list_org_issues",
+            "GET",
+            "/orgs/test-owner/issues",
+            base=base,
+            expect_json_list_length=1,
+        ),
+        Check(
+            "list_org_issues_wrong_org",
+            "GET",
+            "/orgs/nonexistent-org/issues",
+            base=base,
+            expect_json_list_length=0,
+        ),
+        # -- Issues API: Search ---------------------------------------------
+        Check(
+            "search_issues",
+            "GET",
+            "/search/issues?q=Second",
+            base=base,
+            expect_json_contains={"total_count": 1, "incomplete_results": False},
+        ),
+        Check(
+            "search_issues_no_results",
+            "GET",
+            "/search/issues?q=nonexistent-query-xyz",
+            base=base,
+            expect_json_contains={"total_count": 0},
+        ),
+        # -- Issues API: Validation -----------------------------------------
+        Check(
+            "create_issue_missing_title",
+            "POST",
+            "/repos/test-owner/test-repo/issues",
+            base=base,
+            body={},
+            expect_status=422,
+        ),
+        Check(
+            "update_missing_issue_returns_404",
+            "PATCH",
+            "/repos/test-owner/test-repo/issues/999",
+            base=base,
+            body={"title": "nope"},
             expect_status=404,
         ),
     ]
@@ -288,6 +462,50 @@ def auth_checks(base: str, token: str) -> list[Check]:
             expect_status=401,
             expect_json={"detail": "Unauthorized"},
         ),
+        # -- Issues endpoints require auth ----------------------------------
+        Check(
+            "issues_list_rejects_no_token",
+            "GET",
+            "/repos/test-owner/test-repo/issues",
+            base=base,
+            expect_status=401,
+            expect_json={"detail": "Unauthorized"},
+        ),
+        Check(
+            "issues_create_rejects_no_token",
+            "POST",
+            "/repos/test-owner/test-repo/issues",
+            base=base,
+            body={"title": "should fail"},
+            expect_status=401,
+            expect_json={"detail": "Unauthorized"},
+        ),
+        Check(
+            "issues_create_with_token",
+            "POST",
+            "/repos/test-owner/test-repo/issues",
+            base=base,
+            headers={"Authorization": f"Bearer {token}"},
+            body={"title": "Auth issue", "body": "Created with auth"},
+            expect_status=201,
+            expect_json_contains={"number": 1, "title": "Auth issue"},
+        ),
+        Check(
+            "issues_get_with_token",
+            "GET",
+            "/repos/test-owner/test-repo/issues/1",
+            base=base,
+            headers={"Authorization": f"Bearer {token}"},
+            expect_json_contains={"number": 1, "title": "Auth issue"},
+        ),
+        Check(
+            "search_rejects_no_token",
+            "GET",
+            "/search/issues?q=test",
+            base=base,
+            expect_status=401,
+            expect_json={"detail": "Unauthorized"},
+        ),
     ]
 
 
@@ -327,8 +545,10 @@ def main() -> int:
     try:
         # -- Phase 1: no-auth mode ------------------------------------------
 
-        print(f"\nStarting no-auth server on :{NO_AUTH_PORT} ...")
-        no_auth_proc = start_server(NO_AUTH_PORT, auth_required=False)
+        no_auth_data_dir = tempfile.mkdtemp(prefix="gh-issues-noauth-")
+        write_storage_config(no_auth_data_dir)
+        print(f"\nStarting no-auth server on :{NO_AUTH_PORT} (data_dir={no_auth_data_dir}) ...")
+        no_auth_proc = start_server(NO_AUTH_PORT, auth_required=False, data_dir=no_auth_data_dir)
         procs.append(no_auth_proc)
 
         if not wait_ready(NO_AUTH_PORT):
@@ -350,6 +570,7 @@ def main() -> int:
         # -- Phase 2: auth-enabled mode -------------------------------------
 
         auth_data_dir = tempfile.mkdtemp(prefix="gh-issues-test-")
+        write_storage_config(auth_data_dir)
         print(f"\nStarting auth server on :{AUTH_PORT} (data_dir={auth_data_dir}) ...")
         auth_proc = start_server(
             AUTH_PORT,
