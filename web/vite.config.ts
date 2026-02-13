@@ -11,13 +11,14 @@ export default defineConfig({
     },
   },
   server: {
+    port: 10101,
     proxy: {
-      "/api": "http://localhost:8000",
-      "/repos": "http://localhost:8000",
-      "/search": "http://localhost:8000",
-      "/issues": "http://localhost:8000",
-      "/orgs": "http://localhost:8000",
-      "/user": "http://localhost:8000",
+      "/api": "http://localhost:10100",
+      "/repos": "http://localhost:10100",
+      "/search": "http://localhost:10100",
+      "/issues": "http://localhost:10100",
+      "/orgs": "http://localhost:10100",
+      "/user": "http://localhost:10100",
     },
   },
 })

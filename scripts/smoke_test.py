@@ -26,8 +26,8 @@ from urllib.request import Request, urlopen
 
 # -- Config -----------------------------------------------------------------
 
-NO_AUTH_PORT = 9100
-AUTH_PORT = 9101
+NO_AUTH_PORT = 10102
+AUTH_PORT = 10103
 STARTUP_TIMEOUT = 10  # seconds
 
 
@@ -565,7 +565,7 @@ def check_dev_server_starts() -> tuple[bool, str]:
     config files.
     """
     empty_data_dir = tempfile.mkdtemp(prefix="gh-issues-devstart-")
-    port = 9102
+    port = 10104
     env = os.environ.copy()
     env["GH_ISSUES_LOCAL_DATA_DIR"] = empty_data_dir
 

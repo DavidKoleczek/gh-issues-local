@@ -60,7 +60,7 @@ Issues are stored as JSON files at `repos/{owner}/{repo}/issues/{number}/issue.j
 
 ## Frontend
 
-The React frontend lives in `web/`. In dev, run the Vite dev server (`pnpm dev` in `web/`) alongside the backend; Vite proxies API requests to FastAPI on port 8000. For production, `pnpm build` outputs to `web/dist/`, and FastAPI serves it as an SPA with a catch-all route that returns `index.html` for client-side routing. The `GH_ISSUES_LOCAL_FRONTEND_DIR` env var can override the frontend directory.
+The React frontend lives in `web/`. In dev, run the Vite dev server (`pnpm dev` in `web/`) alongside the backend; Vite proxies API requests to FastAPI on port 10100. For production, `pnpm build` outputs to `web/dist/`, and FastAPI serves it as an SPA with a catch-all route that returns `index.html` for client-side routing. The `GH_ISSUES_LOCAL_FRONTEND_DIR` env var can override the frontend directory.
 
 A GitHub Actions workflow (`.github/workflows/build-frontend.yaml`) triggers on pushes to `main` that touch `web/**`. It builds the frontend, tarballs `dist/`, and publishes it as a rolling `frontend-latest` GitHub Release. The `frontend.py` module downloads and caches this tarball when the server is started with `--production`. The cache lives at `$GH_ISSUES_LOCAL_DATA_DIR/frontend_cache/` (or `~/frontend_cache/` by default). Use `--update-frontend` to force a re-download.
 
@@ -77,3 +77,4 @@ The GitHub Issues API routes (`/repos/...`, `/issues`, `/search/...`, `/orgs/...
 
 @README.md
 @docs/ISSUES_SPEC.md -- The target API surface. Implementation should match these endpoints.
+@docs/PORT_REGISTRY.md -- Port allocation registry. All services share the 10100-10199 block.
