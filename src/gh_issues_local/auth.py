@@ -6,7 +6,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-# Paths that never require auth (the UI itself must load to show the login form).
+# Paths that never require auth.  The SPA itself (/ and /assets/*) must load
+# before the user can enter a token, and a few API endpoints are needed for the
+# login flow.
 PUBLIC_PATHS = frozenset({"/", "/api/health", "/api/auth/status", "/api/auth/verify"})
 
 _data_dir = Path(os.environ.get("GH_ISSUES_LOCAL_DATA_DIR", str(Path.home())))
@@ -33,7 +35,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not request.app.state.auth_required:
             return await call_next(request)
 
-        if request.url.path in PUBLIC_PATHS:
+        # The SPA and its assets must be loadable without auth so the user
+        # can reach the login form.  Everything else requires a valid token.
+        path = request.url.path
+        if path in PUBLIC_PATHS or path.startswith("/assets/"):
             return await call_next(request)
 
         auth_header = request.headers.get("authorization", "")

@@ -36,12 +36,41 @@ src/gh_issues_local/
   routes/
     issues.py       -- All 8 Issues -- Core endpoints
   static/
-    index.html      -- Landing page
+    index.html      -- Fallback landing page (used when no frontend build exists)
+web/                -- React frontend (Vite + TypeScript + Tailwind + shadcn/ui)
+  src/              -- React source (pages, components, api client, types)
+  dist/             -- Build output (gitignored, created by `pnpm build`)
 ```
 
-Storage is configured via `create_storage(config_dir=data_dir)` which reads `.storage.yaml` and the provider-specific config file from `$GH_ISSUES_LOCAL_DATA_DIR`. See README for config file format.
+## App Factory Pattern
+
+`app.py` uses a **factory function** (`create_app()`), NOT a module-level `app` instance. This is required because `create_app` accepts an `auth_required` flag and initializes storage from config files that may not exist at import time.
+
+Consequences:
+- `fastapi dev` DOES NOT WORK. It requires a module-level `app` variable and cannot handle factories.
+- The dev command is: `uv run uvicorn gh_issues_local.app:create_app --factory --reload`
+- Do NOT add `app = create_app()` at module level in app.py. It will crash when `$HOME` lacks `.storage.yaml`.
+
+## Storage
+
+Storage is configured via `create_storage(config_dir=data_dir)` which reads `.storage.yaml` and the provider-specific config file from `$GH_ISSUES_LOCAL_DATA_DIR`. If no config exists, `create_app` auto-creates default local-storage config files (`_ensure_storage_config`). This is critical for the dev server startup and must not be removed.
 
 Issues are stored as JSON files at `repos/{owner}/{repo}/issues/{number}/issue.json` with a `counter.txt` for auto-incrementing issue numbers.
+
+## Frontend
+
+The React frontend lives in `web/`. In dev, run the Vite dev server (`pnpm dev` in `web/`) alongside the backend; Vite proxies `/api` requests to FastAPI on port 8000. For production, `pnpm build` outputs to `web/dist/`, and FastAPI serves it as an SPA via `StaticFiles(html=True)`. The `GH_ISSUES_LOCAL_FRONTEND_DIR` env var can override the frontend directory.
+
+When `web/dist/` does not exist, FastAPI falls back to the legacy `static/index.html`.
+
+## Auth Middleware
+
+The auth middleware (`auth.py`) uses an allowlist approach:
+- `PUBLIC_PATHS`: exact paths that skip auth (`/`, `/api/health`, `/api/auth/status`, `/api/auth/verify`)
+- `/assets/*`: also skips auth (Vite-built JS/CSS bundles needed to load the SPA)
+- Everything else requires a Bearer token when auth is enabled
+
+The GitHub Issues API routes (`/repos/...`, `/issues`, `/search/...`, `/orgs/...`) do NOT have an `/api` prefix because they mirror GitHub's real paths. Do not use "starts with /api" as the auth boundary.
 
 # Key Files
 

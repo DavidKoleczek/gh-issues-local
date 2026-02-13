@@ -253,7 +253,7 @@ def no_auth_checks(base: str) -> list[Check]:
             "GET",
             "/",
             base=base,
-            expect_body_contains="GitHub Issues API",
+            expect_body_contains="gh-issues-local",
         ),
         Check(
             "swagger_docs_available",
@@ -534,6 +534,47 @@ def run_checks(label: str, checks: list[Check]) -> tuple[int, int, list[str]]:
     return passed, failed, failures
 
 
+def check_dev_server_starts() -> tuple[bool, str]:
+    """Verify the dev command (uvicorn --factory) starts without errors.
+
+    Uses a temp data directory with NO pre-existing .storage.yaml to confirm
+    that create_app auto-creates default storage config.  This catches the
+    class of bug where create_app crashes at import/call time due to missing
+    config files.
+    """
+    empty_data_dir = tempfile.mkdtemp(prefix="gh-issues-devstart-")
+    port = 9102
+    env = os.environ.copy()
+    env["GH_ISSUES_LOCAL_DATA_DIR"] = empty_data_dir
+
+    proc = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "gh_issues_local.app:create_app",
+            "--factory",
+            f"--port={port}",
+            "--host=127.0.0.1",
+            "--log-level=warning",
+        ],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    try:
+        if wait_ready(port, timeout=STARTUP_TIMEOUT):
+            return True, ""
+        # Server did not start -- grab stderr for diagnostics.
+        proc.terminate()
+        proc.wait(timeout=5)
+        stderr_out = proc.stderr.read().decode() if proc.stderr else ""
+        return False, f"  Server did not become ready.\n  stderr: {stderr_out[:1000]}"
+    finally:
+        stop_server(proc)
+
+
 def main() -> int:
     print("=== gh-issues-local e2e smoke test ===")
 
@@ -543,6 +584,21 @@ def main() -> int:
     all_failures: list[str] = []
 
     try:
+        # -- Phase 0: dev server startup ------------------------------------
+        # Catches factory/config crashes that break `uvicorn --factory`.
+
+        print("\n--- Phase 0: Dev server startup (empty data dir) ---")
+        ok, detail = check_dev_server_starts()
+        if ok:
+            print("[PASS] dev_server_starts: uvicorn --factory with no pre-existing config")
+            total_passed += 1
+        else:
+            print("[FAIL] dev_server_starts: uvicorn --factory with no pre-existing config")
+            if detail:
+                print(detail)
+            total_failed += 1
+            all_failures.append("dev_server_starts")
+
         # -- Phase 1: no-auth mode ------------------------------------------
 
         no_auth_data_dir = tempfile.mkdtemp(prefix="gh-issues-noauth-")

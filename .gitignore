@@ -2,6 +2,10 @@
 ai_working/
 .gh-issues-local-token
 
+# Frontend (web/)
+web/node_modules/
+web/dist/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

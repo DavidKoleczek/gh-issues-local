@@ -6,6 +6,7 @@ Runs locally or in a container, with an optional web UI and token-based auth for
 ## Prerequisites
 
 - [uv](https://docs.astral.sh/uv/)
+- [Node.js](https://nodejs.org/) 20+ with [pnpm](https://pnpm.io/) (for the web UI; enable via `corepack enable`)
 
 ## Quick Start
 
@@ -14,6 +15,13 @@ uv run gh-issues-local
 ```
 
 Opens on http://127.0.0.1:8000 with auth disabled.
+
+To serve the React web UI instead of the minimal landing page, build the frontend first:
+
+```bash
+cd web && pnpm install && pnpm build && cd ..
+uv run gh-issues-local
+```
 
 ## API
 
@@ -65,12 +73,26 @@ All Issues API endpoints require a `Bearer` token when auth is enabled. Infrastr
 
 ## Development
 
+Backend only (no frontend hot-reload):
+
 ```bash
 uv sync
-uv run fastapi dev src/gh_issues_local/app.py
+uv run uvicorn gh_issues_local.app:create_app --factory --reload
 ```
 
-This starts the server with auto-reload for development.
+Full-stack with frontend hot-reload (two terminals):
+
+```bash
+# Terminal 1 -- FastAPI backend
+uv run uvicorn gh_issues_local.app:create_app --factory --reload
+
+# Terminal 2 -- Vite dev server with API proxy
+cd web && pnpm install && pnpm dev
+```
+
+Open http://localhost:5173 for the React UI with hot module reload. API calls (`/api/*`) are proxied to the FastAPI server on port 8000.
+
+When the frontend is built (`web/dist/` exists), FastAPI serves it as a single-page app at `/` with client-side routing support. Without a build, it falls back to a minimal landing page. The `GH_ISSUES_LOCAL_FRONTEND_DIR` env var can override the frontend directory path.
 
 ## Git Hooks
 
