@@ -24,22 +24,24 @@ def main() -> None:
     parser.add_argument(
         "--production",
         action="store_true",
-        help="Download the frontend build from GitHub Releases and serve it",
+        help="Bind to 0.0.0.0 and enable auth",
+    )
+    parser.add_argument(
+        "--dev",
+        action="store_true",
+        help="Skip frontend download (use local web/dist/ and Vite dev server instead)",
     )
     parser.add_argument(
         "--update-frontend",
         action="store_true",
-        help="Force re-download of the frontend build (implies --production)",
+        help="Force re-download of the frontend build",
     )
     args = parser.parse_args()
 
-    if args.update_frontend:
-        args.production = True
-
     host = args.host or ("0.0.0.0" if args.production else "127.0.0.1")
 
-    # In production mode, download the frontend build before starting.
-    if args.production:
+    # Download the frontend build unless in dev mode.
+    if not args.dev:
         from gh_issues_local.frontend import fetch_frontend
 
         data_dir = Path(os.environ.get("GH_ISSUES_LOCAL_DATA_DIR", str(Path.home())))

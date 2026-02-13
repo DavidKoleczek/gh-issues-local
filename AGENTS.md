@@ -77,4 +77,3 @@ The GitHub Issues API routes (`/repos/...`, `/issues`, `/search/...`, `/orgs/...
 
 @README.md
 @docs/ISSUES_SPEC.md -- The target API surface. Implementation should match these endpoints.
-@docs/PORT_REGISTRY.md -- Port allocation registry. All services share the 10100-10199 block.

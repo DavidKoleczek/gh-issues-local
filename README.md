@@ -14,20 +14,7 @@ Runs locally or in a container, with an optional web UI and token-based auth for
 uv run gh-issues-local
 ```
 
-Opens on http://127.0.0.1:10100 with auth disabled.
-
-To serve the React web UI, use production mode (downloads a pre-built frontend from GitHub Releases):
-
-```bash
-uv run gh-issues-local --production
-```
-
-Or build the frontend locally:
-
-```bash
-cd web && pnpm install && pnpm build && cd ..
-uv run gh-issues-local
-```
+Opens on http://127.0.0.1:10100 with the web UI and auth disabled. The pre-built frontend is downloaded from GitHub Releases on first run.
 
 ## API
 
@@ -69,11 +56,12 @@ Auth is **off** when bound to `127.0.0.1` (the default) and **on** when bound to
 
 | Flag | Effect |
 |------|--------|
-| `--host 0.0.0.0` | Bind to all interfaces, enables auth |
+| `--production` | Bind to `0.0.0.0`, enable auth |
+| `--dev` | Skip frontend download (use local `web/dist/` and Vite dev server) |
 | `--no-auth` | Explicitly disable auth on any bind address |
+| `--host HOST` | Override bind address |
 | `--port PORT` | Listen on a different port (default: 10100) |
-| `--production` | Download frontend from GitHub Releases, bind to `0.0.0.0` |
-| `--update-frontend` | Force re-download of the frontend build (implies `--production`) |
+| `--update-frontend` | Force re-download of the frontend build |
 
 When auth is enabled a random token is generated and stored in `~/.gh-issues-local-token`
 (or `$GH_ISSUES_LOCAL_DATA_DIR/.gh-issues-local-token` if the env var is set).
@@ -81,11 +69,12 @@ All Issues API endpoints require a `Bearer` token when auth is enabled. Infrastr
 
 ## Development
 
+Use `--dev` to skip the frontend download and work with the local source instead.
+
 Backend only (no frontend hot-reload):
 
 ```bash
-uv sync
-uv run uvicorn gh_issues_local.app:create_app --factory --reload
+uv run gh-issues-local --dev
 ```
 
 Full-stack with frontend hot-reload (two terminals):
@@ -99,8 +88,6 @@ cd web && pnpm install && pnpm dev
 ```
 
 Open http://localhost:10101 for the React UI with hot module reload. API calls are proxied to the FastAPI server on port 10100.
-
-When the frontend is built (`web/dist/` exists), FastAPI serves it as a single-page app at `/` with client-side routing support. The `GH_ISSUES_LOCAL_FRONTEND_DIR` env var can override the frontend directory path.
 
 ## Git Hooks
 
