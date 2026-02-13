@@ -31,6 +31,7 @@ src/gh_issues_local/
   __init__.py       -- CLI entrypoint (argparse + uvicorn)
   app.py            -- FastAPI app factory, wires storage + routes + auth
   auth.py           -- Bearer token middleware, PUBLIC_PATHS whitelist
+  frontend.py       -- Downloads pre-built frontend from GitHub Releases
   models.py         -- Pydantic request models (CreateIssueRequest, UpdateIssueRequest)
   storage.py        -- IssueStore: CRUD/list/search backed by storage-provider
   routes/
@@ -40,6 +41,8 @@ src/gh_issues_local/
 web/                -- React frontend (Vite + TypeScript + Tailwind + shadcn/ui)
   src/              -- React source (pages, components, api client, types)
   dist/             -- Build output (gitignored, created by `pnpm build`)
+.github/workflows/
+  build-frontend.yaml -- Builds web/ on push to main, publishes tarball as GitHub Release
 ```
 
 ## App Factory Pattern
@@ -62,6 +65,8 @@ Issues are stored as JSON files at `repos/{owner}/{repo}/issues/{number}/issue.j
 The React frontend lives in `web/`. In dev, run the Vite dev server (`pnpm dev` in `web/`) alongside the backend; Vite proxies `/api` requests to FastAPI on port 8000. For production, `pnpm build` outputs to `web/dist/`, and FastAPI serves it as an SPA via `StaticFiles(html=True)`. The `GH_ISSUES_LOCAL_FRONTEND_DIR` env var can override the frontend directory.
 
 When `web/dist/` does not exist, FastAPI falls back to the legacy `static/index.html`.
+
+A GitHub Actions workflow (`.github/workflows/build-frontend.yaml`) triggers on pushes to `main` that touch `web/**`. It builds the frontend, tarballs `dist/`, and publishes it as a rolling `frontend-latest` GitHub Release. The `frontend.py` module downloads and caches this tarball when the server is started with `--production`. The cache lives at `$GH_ISSUES_LOCAL_DATA_DIR/frontend_cache/` (or `~/frontend_cache/` by default). Use `--update-frontend` to force a re-download.
 
 ## Auth Middleware
 

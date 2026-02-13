@@ -16,7 +16,13 @@ uv run gh-issues-local
 
 Opens on http://127.0.0.1:8000 with auth disabled.
 
-To serve the React web UI instead of the minimal landing page, build the frontend first:
+To serve the React web UI, use production mode (downloads a pre-built frontend from GitHub Releases):
+
+```bash
+uv run gh-issues-local --production
+```
+
+Or build the frontend locally:
 
 ```bash
 cd web && pnpm install && pnpm build && cd ..
@@ -66,6 +72,8 @@ Auth is **off** when bound to `127.0.0.1` (the default) and **on** when bound to
 | `--host 0.0.0.0` | Bind to all interfaces, enables auth |
 | `--no-auth` | Explicitly disable auth on any bind address |
 | `--port PORT` | Listen on a different port (default: 8000) |
+| `--production` | Download frontend from GitHub Releases, bind to `0.0.0.0` |
+| `--update-frontend` | Force re-download of the frontend build (implies `--production`) |
 
 When auth is enabled a random token is generated and stored in `~/.gh-issues-local-token`
 (or `$GH_ISSUES_LOCAL_DATA_DIR/.gh-issues-local-token` if the env var is set).
