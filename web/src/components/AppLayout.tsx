@@ -1,11 +1,17 @@
 import { useState } from "react"
-import { Link, Outlet, useNavigate } from "react-router-dom"
+import { Link, Navigate, Outlet, useNavigate } from "react-router-dom"
 import { CircleDot, Search } from "lucide-react"
+import { useAuth } from "@/hooks/useAuth"
 import { Input } from "@/components/ui/input"
+import { LoadingSpinner } from "@/components/LoadingSpinner"
 
 export function AppLayout() {
+  const { required, authenticated, loading } = useAuth()
   const [query, setQuery] = useState("")
   const navigate = useNavigate()
+
+  if (loading) return <LoadingSpinner />
+  if (required && !authenticated) return <Navigate to="/login" replace />
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()

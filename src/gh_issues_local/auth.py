@@ -6,10 +6,32 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-# Paths that never require auth.  The SPA itself (/ and /assets/*) must load
-# before the user can enter a token, and a few API endpoints are needed for the
-# login flow.
-PUBLIC_PATHS = frozenset({"/", "/api/health", "/api/auth/status", "/api/auth/verify"})
+# Infrastructure API paths that skip auth (needed for the SPA login flow).
+PUBLIC_API_PATHS = frozenset({"/api/health", "/api/auth/status", "/api/auth/verify"})
+
+# GitHub-style data API prefixes (no /api prefix -- they mirror GitHub's real
+# paths).  Everything under these prefixes requires auth.
+_API_PREFIXES = ("/repos/", "/search/", "/orgs/", "/user/")
+
+# FastAPI auto-generated doc routes.
+_DOC_PATHS = frozenset({"/docs", "/openapi.json", "/redoc"})
+
+
+def _is_protected(path: str) -> bool:
+    """Return True when *path* leads to a data endpoint that requires auth.
+
+    The SPA shell and its assets are static HTML/JS/CSS -- they contain no
+    user data and must be accessible without a token so the browser can
+    render the login page.  Only the data API surface is gated.
+    """
+    if path in PUBLIC_API_PATHS:
+        return False
+    if path.startswith(_API_PREFIXES) or path == "/issues":
+        return True
+    if path.startswith("/api/"):
+        return True
+    return path in _DOC_PATHS
+
 
 _data_dir = Path(os.environ.get("GH_ISSUES_LOCAL_DATA_DIR", str(Path.home())))
 TOKEN_FILE = _data_dir / ".gh-issues-local-token"
@@ -35,10 +57,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not request.app.state.auth_required:
             return await call_next(request)
 
-        # The SPA and its assets must be loadable without auth so the user
-        # can reach the login form.  Everything else requires a valid token.
         path = request.url.path
-        if path in PUBLIC_PATHS or path.startswith("/assets/"):
+        if not _is_protected(path):
             return await call_next(request)
 
         auth_header = request.headers.get("authorization", "")

@@ -462,6 +462,28 @@ def auth_checks(base: str, token: str) -> list[Check]:
             expect_status=401,
             expect_json={"detail": "Unauthorized"},
         ),
+        # -- SPA routes are public (no auth needed to load the shell) ---------
+        Check(
+            "spa_login_route_is_public",
+            "GET",
+            "/login",
+            base=base,
+            expect_status=200,
+        ),
+        Check(
+            "spa_arbitrary_route_is_public",
+            "GET",
+            "/owner/repo/issues",
+            base=base,
+            expect_status=200,
+        ),
+        Check(
+            "favicon_is_public",
+            "GET",
+            "/favicon.ico",
+            base=base,
+            expect_status=200,
+        ),
         # -- Issues endpoints require auth ----------------------------------
         Check(
             "issues_list_rejects_no_token",
