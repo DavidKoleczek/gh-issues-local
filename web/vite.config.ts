@@ -13,6 +13,11 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": "http://localhost:8000",
+      "/repos": "http://localhost:8000",
+      "/search": "http://localhost:8000",
+      "/issues": "http://localhost:8000",
+      "/orgs": "http://localhost:8000",
+      "/user": "http://localhost:8000",
     },
   },
 })

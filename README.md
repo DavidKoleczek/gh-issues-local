@@ -98,9 +98,9 @@ uv run uvicorn gh_issues_local.app:create_app --factory --reload
 cd web && pnpm install && pnpm dev
 ```
 
-Open http://localhost:5173 for the React UI with hot module reload. API calls (`/api/*`) are proxied to the FastAPI server on port 8000.
+Open http://localhost:5173 for the React UI with hot module reload. API calls are proxied to the FastAPI server on port 8000.
 
-When the frontend is built (`web/dist/` exists), FastAPI serves it as a single-page app at `/` with client-side routing support. Without a build, it falls back to a minimal landing page. The `GH_ISSUES_LOCAL_FRONTEND_DIR` env var can override the frontend directory path.
+When the frontend is built (`web/dist/` exists), FastAPI serves it as a single-page app at `/` with client-side routing support. The `GH_ISSUES_LOCAL_FRONTEND_DIR` env var can override the frontend directory path.
 
 ## Git Hooks
 

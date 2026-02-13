@@ -102,6 +102,13 @@ export function updateIssue(
   })
 }
 
+// Global issue list (all repos). Used for repo discovery.
+export function listAllIssues(
+  params: ListIssuesParams = {},
+): Promise<Issue[]> {
+  return request(`/issues${toQuery(params as Record<string, unknown>)}`)
+}
+
 export function searchIssues(
   q: string,
   params: { per_page?: number; page?: number } = {},
