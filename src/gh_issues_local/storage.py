@@ -103,6 +103,14 @@ class IssueStore:
     def _counter_path(owner: str, repo: str) -> str:
         return f"repos/{owner}/{repo}/counter.txt"
 
+    @staticmethod
+    def _comment_path(owner: str, repo: str, comment_id: int) -> str:
+        return f"repos/{owner}/{repo}/comments/{comment_id}/comment.json"
+
+    @staticmethod
+    def _comment_counter_path(owner: str, repo: str) -> str:
+        return f"repos/{owner}/{repo}/comment_counter.txt"
+
     # -- internal helpers ---------------------------------------------------
 
     def _next_number(self, owner: str, repo: str) -> int:
@@ -156,6 +164,41 @@ class IssueStore:
                 numbers.append(int(name))
         numbers.sort()
         return numbers
+
+    def _next_comment_id(self, owner: str, repo: str) -> int:
+        path = self._comment_counter_path(owner, repo)
+        current = 0
+        if self._storage.exists(path):
+            current = int(self._storage.read(path).decode().strip())
+        next_id = current + 1
+        self._storage.write(path, str(next_id).encode())
+        return next_id
+
+    def _read_comment(self, owner: str, repo: str, comment_id: int) -> dict[str, Any] | None:
+        path = self._comment_path(owner, repo, comment_id)
+        try:
+            data = self._storage.read(path)
+        except StorageNotFoundError:
+            return None
+        return json.loads(data)
+
+    def _write_comment(self, owner: str, repo: str, comment_id: int, comment: dict[str, Any]) -> None:
+        path = self._comment_path(owner, repo, comment_id)
+        self._storage.write(path, json.dumps(comment, ensure_ascii=False).encode())
+
+    def _list_comment_ids(self, owner: str, repo: str) -> list[int]:
+        """Return all comment IDs for a repo, sorted ascending."""
+        try:
+            entries = self._storage.list(f"repos/{owner}/{repo}/comments/")
+        except StorageNotFoundError:
+            return []
+        ids: list[int] = []
+        for entry in entries:
+            name = entry.rstrip("/")
+            if name.isdigit():
+                ids.append(int(name))
+        ids.sort()
+        return ids
 
     # -- public API ---------------------------------------------------------
 
@@ -489,3 +532,176 @@ class IssueStore:
             "incomplete_results": False,
             "items": items,
         }
+
+    # -- Comment API --------------------------------------------------------
+
+    def create_comment(
+        self,
+        owner: str,
+        repo: str,
+        issue_number: int,
+        body: str,
+        base_url: str,
+    ) -> dict[str, Any] | None:
+        """Create a comment on an issue. Returns None if the issue doesn't exist."""
+        issue = self._read_issue(owner, repo, issue_number)
+        if issue is None:
+            return None
+
+        comment_id = self._next_comment_id(owner, repo)
+        now = _now_iso()
+        user = {
+            **DEFAULT_USER,
+            "url": f"{base_url}/users/local-user",
+            "html_url": f"{base_url}/users/local-user",
+        }
+
+        comment: dict[str, Any] = {
+            "id": comment_id,
+            "node_id": f"IC_{comment_id}",
+            "url": f"{base_url}/repos/{owner}/{repo}/issues/comments/{comment_id}",
+            "html_url": f"{base_url}/repos/{owner}/{repo}/issues/comments/{comment_id}",
+            "issue_url": f"{base_url}/repos/{owner}/{repo}/issues/{issue_number}",
+            "user": user,
+            "created_at": now,
+            "updated_at": now,
+            "body": body,
+            "author_association": "OWNER",
+            "performed_via_github_app": None,
+            "reactions": None,
+            # Internal field for filtering by issue.
+            "issue_number": issue_number,
+        }
+
+        self._write_comment(owner, repo, comment_id, comment)
+
+        # Increment the issue's comment count.
+        issue["comments"] = issue.get("comments", 0) + 1
+        issue["updated_at"] = now
+        self._write_issue(owner, repo, issue_number, issue)
+
+        return comment
+
+    def get_comment(self, owner: str, repo: str, comment_id: int) -> dict[str, Any] | None:
+        """Get a single comment, or None if not found."""
+        return self._read_comment(owner, repo, comment_id)
+
+    def update_comment(
+        self,
+        owner: str,
+        repo: str,
+        comment_id: int,
+        body: str,
+        base_url: str,
+    ) -> dict[str, Any] | None:
+        """Update a comment's body. Returns None if not found."""
+        comment = self._read_comment(owner, repo, comment_id)
+        if comment is None:
+            return None
+
+        comment["body"] = body
+        comment["updated_at"] = _now_iso()
+        self._write_comment(owner, repo, comment_id, comment)
+        return comment
+
+    def delete_comment(self, owner: str, repo: str, comment_id: int) -> bool:
+        """Delete a comment. Returns False if not found."""
+        comment = self._read_comment(owner, repo, comment_id)
+        if comment is None:
+            return False
+
+        # Decrement the parent issue's comment count.
+        issue_number = comment.get("issue_number")
+        if issue_number is not None:
+            issue = self._read_issue(owner, repo, issue_number)
+            if issue is not None:
+                issue["comments"] = max(0, issue.get("comments", 0) - 1)
+                issue["updated_at"] = _now_iso()
+                self._write_issue(owner, repo, issue_number, issue)
+
+        self._storage.delete(self._comment_path(owner, repo, comment_id))
+        return True
+
+    def list_comments_for_issue(
+        self,
+        owner: str,
+        repo: str,
+        issue_number: int,
+        *,
+        since: str | None = None,
+        per_page: int = 30,
+        page: int = 1,
+    ) -> list[dict[str, Any]] | None:
+        """List comments for a specific issue. Returns None if the issue doesn't exist."""
+        issue = self._read_issue(owner, repo, issue_number)
+        if issue is None:
+            return None
+
+        comments: list[dict[str, Any]] = []
+        for cid in self._list_comment_ids(owner, repo):
+            comment = self._read_comment(owner, repo, cid)
+            if comment is None:
+                continue
+            if comment.get("issue_number") != issue_number:
+                continue
+            if since and comment.get("updated_at", "") < since:
+                continue
+            comments.append(comment)
+
+        # Comments for an issue are always sorted by created_at ascending.
+        comments.sort(key=lambda c: c.get("created_at", ""))
+
+        start = (page - 1) * per_page
+        return comments[start : start + per_page]
+
+    def list_comments_for_repo(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        sort: str = "created",
+        direction: str = "desc",
+        since: str | None = None,
+        per_page: int = 30,
+        page: int = 1,
+    ) -> list[dict[str, Any]]:
+        """List all comments for a repo with sorting and pagination."""
+        comments: list[dict[str, Any]] = []
+        for cid in self._list_comment_ids(owner, repo):
+            comment = self._read_comment(owner, repo, cid)
+            if comment is None:
+                continue
+            if since and comment.get("updated_at", "") < since:
+                continue
+            comments.append(comment)
+
+        sort_field = "updated_at" if sort == "updated" else "created_at"
+        comments.sort(
+            key=lambda c: c.get(sort_field, ""),
+            reverse=(direction == "desc"),
+        )
+
+        start = (page - 1) * per_page
+        return comments[start : start + per_page]
+
+    def pin_comment(self, owner: str, repo: str, comment_id: int) -> dict[str, Any] | None:
+        """Pin a comment. Returns None if not found."""
+        comment = self._read_comment(owner, repo, comment_id)
+        if comment is None:
+            return None
+
+        comment["pinned"] = True
+        comment["updated_at"] = _now_iso()
+        self._write_comment(owner, repo, comment_id, comment)
+        return comment
+
+    def unpin_comment(self, owner: str, repo: str, comment_id: int) -> bool:
+        """Unpin a comment. Returns False if not found."""
+        comment = self._read_comment(owner, repo, comment_id)
+        if comment is None:
+            return False
+
+        comment["pinned"] = False
+        comment["updated_at"] = _now_iso()
+        self._write_comment(owner, repo, comment_id, comment)
+        return True

@@ -31,6 +31,20 @@ export interface Issue {
   repository_url: string
 }
 
+export interface Comment {
+  id: number
+  node_id: string
+  url: string
+  html_url: string
+  issue_url: string
+  user: User
+  created_at: string
+  updated_at: string
+  body: string
+  author_association: string
+  pinned?: boolean
+}
+
 export interface CreateIssueRequest {
   title: string
   body?: string

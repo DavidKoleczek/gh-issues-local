@@ -27,3 +27,15 @@ class UpdateIssueRequest(BaseModel):
     milestone: str | int | None = None
     labels: list[str] | None = None
     assignees: list[str] | None = None
+
+
+class CreateCommentRequest(BaseModel):
+    """Request body for POST /repos/{owner}/{repo}/issues/{issue_number}/comments."""
+
+    body: str
+
+
+class UpdateCommentRequest(BaseModel):
+    """Request body for PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}."""
+
+    body: str

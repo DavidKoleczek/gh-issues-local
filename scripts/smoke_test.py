@@ -401,6 +401,150 @@ def no_auth_checks(base: str) -> list[Check]:
             body={"title": "nope"},
             expect_status=404,
         ),
+        # -- Comments API: Create -------------------------------------------
+        Check(
+            "create_comment",
+            "POST",
+            "/repos/test-owner/test-repo/issues/2/comments",
+            base=base,
+            body={"body": "This is a comment"},
+            expect_status=201,
+            expect_json_contains={"id": 1, "body": "This is a comment"},
+        ),
+        Check(
+            "create_second_comment",
+            "POST",
+            "/repos/test-owner/test-repo/issues/2/comments",
+            base=base,
+            body={"body": "Second comment"},
+            expect_status=201,
+            expect_json_contains={"id": 2, "body": "Second comment"},
+        ),
+        Check(
+            "create_comment_on_nonexistent_issue",
+            "POST",
+            "/repos/test-owner/test-repo/issues/999/comments",
+            base=base,
+            body={"body": "should fail"},
+            expect_status=404,
+        ),
+        # -- Comments API: List for issue -----------------------------------
+        Check(
+            "list_comments_for_issue",
+            "GET",
+            "/repos/test-owner/test-repo/issues/2/comments",
+            base=base,
+            expect_json_list_length=2,
+        ),
+        Check(
+            "list_comments_for_nonexistent_issue",
+            "GET",
+            "/repos/test-owner/test-repo/issues/999/comments",
+            base=base,
+            expect_status=404,
+        ),
+        # -- Comments API: List for repo ------------------------------------
+        Check(
+            "list_comments_for_repo",
+            "GET",
+            "/repos/test-owner/test-repo/issues/comments",
+            base=base,
+            expect_json_list_length=2,
+        ),
+        # -- Comments API: Get ----------------------------------------------
+        Check(
+            "get_comment",
+            "GET",
+            "/repos/test-owner/test-repo/issues/comments/1",
+            base=base,
+            expect_json_contains={"id": 1, "body": "This is a comment"},
+        ),
+        Check(
+            "get_missing_comment_returns_404",
+            "GET",
+            "/repos/test-owner/test-repo/issues/comments/999",
+            base=base,
+            expect_status=404,
+        ),
+        # -- Comments API: Update -------------------------------------------
+        Check(
+            "update_comment",
+            "PATCH",
+            "/repos/test-owner/test-repo/issues/comments/1",
+            base=base,
+            body={"body": "Updated comment body"},
+            expect_json_contains={"id": 1, "body": "Updated comment body"},
+        ),
+        Check(
+            "update_missing_comment_returns_404",
+            "PATCH",
+            "/repos/test-owner/test-repo/issues/comments/999",
+            base=base,
+            body={"body": "nope"},
+            expect_status=404,
+        ),
+        # -- Comments API: Pin/Unpin ----------------------------------------
+        Check(
+            "pin_comment",
+            "PUT",
+            "/repos/test-owner/test-repo/issues/comments/1/pin",
+            base=base,
+            expect_json_contains={"id": 1, "pinned": True},
+        ),
+        Check(
+            "unpin_comment",
+            "DELETE",
+            "/repos/test-owner/test-repo/issues/comments/1/pin",
+            base=base,
+            expect_status=204,
+        ),
+        Check(
+            "pin_missing_comment_returns_404",
+            "PUT",
+            "/repos/test-owner/test-repo/issues/comments/999/pin",
+            base=base,
+            expect_status=404,
+        ),
+        # -- Comments API: Delete -------------------------------------------
+        Check(
+            "delete_comment",
+            "DELETE",
+            "/repos/test-owner/test-repo/issues/comments/2",
+            base=base,
+            expect_status=204,
+        ),
+        Check(
+            "list_comments_after_delete",
+            "GET",
+            "/repos/test-owner/test-repo/issues/2/comments",
+            base=base,
+            expect_json_list_length=1,
+        ),
+        Check(
+            "delete_missing_comment_returns_404",
+            "DELETE",
+            "/repos/test-owner/test-repo/issues/comments/999",
+            base=base,
+            expect_status=404,
+        ),
+        # -- Comments API: Verify issue comment count -----------------------
+        Check(
+            "issue_comment_count_updated",
+            "GET",
+            "/repos/test-owner/test-repo/issues/2",
+            base=base,
+            # Started with 0, +2 created, -1 deleted = 1
+            expect_json_contains={"number": 2, "comments": 1},
+        ),
+        # -- Comments API: Validation ---------------------------------------
+        Check(
+            "create_comment_missing_body",
+            "POST",
+            "/repos/test-owner/test-repo/issues/2/comments",
+            base=base,
+            body={},
+            expect_status=422,
+        ),
     ]
 
 

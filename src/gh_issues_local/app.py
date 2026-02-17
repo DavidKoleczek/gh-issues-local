@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from storage_provider import create_storage
 
 from gh_issues_local.auth import TOKEN_FILE, AuthMiddleware, ensure_token
+from gh_issues_local.routes.comments import router as comments_router
 from gh_issues_local.routes.issues import router as issues_router
 from gh_issues_local.storage import IssueStore
 
@@ -47,6 +48,10 @@ def create_app(auth_required: bool = False) -> FastAPI:
     app.state.issue_store = IssueStore(storage)
 
     app.add_middleware(AuthMiddleware)  # type: ignore[invalid-argument-type]  # BaseHTTPMiddleware subclass; ty can't resolve the generic factory signature
+
+    # -- Comments API routes (registered before issues so literal paths like
+    # /issues/comments are matched before the parameterized /issues/{number}).
+    app.include_router(comments_router)
 
     # -- Issues API routes --------------------------------------------------
     app.include_router(issues_router)
