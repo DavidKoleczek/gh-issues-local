@@ -8,7 +8,6 @@ from pydantic import BaseModel
 from storage_provider import create_storage
 
 from gh_issues_local.auth import TOKEN_FILE, AuthMiddleware, ensure_token
-from gh_issues_local.config import Config
 from gh_issues_local.routes.comments import router as comments_router
 from gh_issues_local.routes.issues import router as issues_router
 from gh_issues_local.storage import IssueStore
@@ -16,51 +15,26 @@ from gh_issues_local.storage import IssueStore
 # Built frontend output (produced by `pnpm build` in web/).
 FRONTEND_DIST = Path(__file__).parents[2] / "web" / "dist"
 
+_data_dir = Path(os.environ.get("GH_ISSUES_LOCAL_DATA_DIR", str(Path.home())))
+
 
 class VerifyRequest(BaseModel):
     token: str
 
 
-def _ensure_storage_config(config: Config) -> None:
-    """Create .storage.yaml and .local_storage.yaml if missing.
-
-    When config.storage is provided (from a YAML config file), write those
-    values. Otherwise write the same hardcoded defaults as before.
-    """
-    storage_yaml = config.data_dir / ".storage.yaml"
+def _ensure_storage_config(data_dir: Path) -> None:
+    """Create .storage.yaml and .local_storage.yaml if missing."""
+    storage_yaml = data_dir / ".storage.yaml"
     if storage_yaml.is_file():
         return
-
-    if config.storage:
-        # Write provider selection.
-        provider = config.storage.get("provider", "local")
-        storage_yaml.write_text(f"provider: {provider}\n")
-        # Write provider-specific config.
-        provider_config = config.storage.get(provider)
-        if provider_config:
-            import yaml
-
-            provider_yaml = config.data_dir / f".{provider}_storage.yaml"
-            if not provider_yaml.is_file():
-                provider_yaml.write_text(yaml.dump(provider_config, default_flow_style=False))
-    else:
-        # No config file -- write hardcoded defaults (backward compatible).
-        storage_yaml.write_text("provider: local\n")
-        local_yaml = config.data_dir / ".local_storage.yaml"
-        if not local_yaml.is_file():
-            local_yaml.write_text("root_path: ./storage\n")
+    storage_yaml.write_text("provider: local\n")
+    local_yaml = data_dir / ".local_storage.yaml"
+    if not local_yaml.is_file():
+        local_yaml.write_text("root_path: ./storage\n")
 
 
-def create_app(auth_required: bool = False, config: Config | None = None) -> FastAPI:
-    if config is None:
-        from gh_issues_local.config import load_config
-
-        config = load_config()
-
+def create_app(auth_required: bool = False) -> FastAPI:
     app = FastAPI(title="GitHub Issues API", version="0.1.0")
-
-    # Config
-    app.state.config = config
 
     # Auth state -- set before middleware so it's available on first request.
     app.state.auth_required = auth_required
@@ -70,8 +44,8 @@ def create_app(auth_required: bool = False, config: Config | None = None) -> Fas
     # Storage -- resolved from config files (.storage.yaml) in the data directory.
     # If no config exists yet, create a default local-storage setup so the
     # server can start without manual configuration.
-    _ensure_storage_config(config)
-    storage = create_storage(config_dir=config.data_dir)
+    _ensure_storage_config(_data_dir)
+    storage = create_storage(config_dir=_data_dir)
     app.state.issue_store = IssueStore(storage)
 
     app.add_middleware(AuthMiddleware)  # type: ignore[invalid-argument-type]  # BaseHTTPMiddleware subclass; ty can't resolve the generic factory signature

@@ -210,7 +210,6 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi", extra = ["standard"] },
-    { name = "pyyaml" },
     { name = "storage-provider" },
 ]
 
@@ -224,7 +223,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", extras = ["standard"], specifier = ">=0.129.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
     { name = "storage-provider", git = "https://github.com/DavidKoleczek/storage-provider.git" },
 ]
 

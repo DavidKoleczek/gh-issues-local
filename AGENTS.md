@@ -36,6 +36,7 @@ src/gh_issues_local/
   storage.py        -- IssueStore: CRUD/list/search backed by storage-provider
   routes/
     issues.py       -- All 8 Issues -- Core endpoints
+    comments.py     -- All 8 Comments endpoints (list, get, create, update, delete, pin/unpin)
 web/                -- React frontend (Vite + TypeScript + Tailwind + shadcn/ui)
   src/              -- React source (pages, components, api client, types)
   dist/             -- Build output (gitignored, created by `pnpm build`)

@@ -1,5 +1,6 @@
 import argparse
 import os
+from pathlib import Path
 
 
 def main() -> None:
@@ -43,22 +44,21 @@ def main() -> None:
     import uvicorn
 
     from gh_issues_local.app import create_app
-    from gh_issues_local.config import load_config
 
-    config = load_config()
+    data_dir = Path(os.environ.get("GH_ISSUES_LOCAL_DATA_DIR", str(Path.home())))
 
     # Download the frontend build unless in dev mode.
     if not args.dev:
         from gh_issues_local.frontend import fetch_frontend
 
-        cache_dir = config.data_dir / "frontend_cache"
+        cache_dir = data_dir / "frontend_cache"
         frontend_dir = fetch_frontend(cache_dir, force=args.update_frontend)
         os.environ["GH_ISSUES_LOCAL_FRONTEND_DIR"] = str(frontend_dir)
 
     # Auth is required when binding to non-localhost unless explicitly disabled.
     auth_required = host != "127.0.0.1" and not args.no_auth
 
-    app = create_app(auth_required=auth_required, config=config)
+    app = create_app(auth_required=auth_required)
 
     print(f"Starting gh-issues-local on http://{host}:{args.port}")
     if auth_required:
